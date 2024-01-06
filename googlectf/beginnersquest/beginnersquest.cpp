@@ -18,6 +18,7 @@ int main()
    * Problem Set 0000
    * Caesar (and related) Ciphers and Transpositions
    */
+  /*
   {
     // 0000 Challenge 0 - Standard Caesar with shift value 13
     {
@@ -101,6 +102,25 @@ int main()
       std::cout << "plaintext: " << plaintext << "\n\n";
     }
   } // end 0000
+  */
 
+  /***
+   * Problem Set 1837
+   * Morse Code Translations
+   */
 
+  {
+    {
+      std::string code0 =
+        "..-. .-. --- --/-.   .   .--/-.-- --- .-. -.-/.. .   ..   -   .. ../."
+        ".- ... .-/-   . ./.-.. --- -. -.. --- -./..-   -.   ..   -   .   -../"
+        "-.- .. -. --. -.. --- --/. ..   .   ..-.   ..-   .   ...   -/- ---/. "
+        "  .-..   -   . ..   .-   .. .   -/..-. .-.. .- --./{-   . ..   ....- "
+        "  -.   ---   ....-   -   â¸º   ....-   -.   -   ..   .. .}/--- -./. ."
+        "   . ..   -..   .   . ../--- ..-./...   .   -.   -..   .   . ../--. -"
+        "-- --- --. .-.. ./.. .   -   .-.";
+
+      std::cout << "Code: " << code0 << "\n\n";
+    }
+  }
 }

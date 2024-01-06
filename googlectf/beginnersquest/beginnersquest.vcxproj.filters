@@ -23,5 +23,8 @@
     <ClInclude Include="P0000.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="P1837.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
