@@ -1,4 +1,15 @@
-﻿#pragma once
+﻿/***
+ * Google CTF - Beginner's Quest
+ * Functions for solving Problem Set 0000
+ *
+ * By: jimdiroffii
+ *
+ * CTF: https://capturetheflag.withgoogle.com/beginners-quest
+ *
+ * A collection of functions and solutions to the Beginner's Quest problems
+ */
+
+#pragma once
 
 #ifndef P0000_H
 #define P0000_H
