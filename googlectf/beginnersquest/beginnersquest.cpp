@@ -10,6 +10,7 @@
  */
 
 #include "P0000.h"
+#include "P1837.h"
 #include <iostream>
 
 int main()
@@ -110,7 +111,16 @@ int main()
    */
 
   {
+    // 1837 Challenge 0 - Morse Code Translation
     {
+      // â¸º translates to 'L', and this character `⸺` in American Morse
+      // the `/` character separates the words
+      // the pattern appears to switch at these points from single space between
+      // letters, to triple space between letters. 
+      // This points to an alternation between American and International Morse
+      // between each word. The triple space is needed to distinguish the letters
+      // that have a single space in their morse code, such as `C` = ".. .", in 
+      // American Morse
       std::string code0 =
         "..-. .-. --- --/-.   .   .--/-.-- --- .-. -.-/.. .   ..   -   .. ../."
         ".- ... .-/-   . ./.-.. --- -. -.. --- -./..-   -.   ..   -   .   -../"
@@ -121,6 +131,7 @@ int main()
         "-- --- --. .-.. ./.. .   -   .-.";
 
       std::cout << "Code: " << code0 << "\n\n";
+      std::cout << decodeMorse(code0) << "\n\n";
     }
   }
 }
