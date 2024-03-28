@@ -207,3 +207,5 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
+# Python
+venv
