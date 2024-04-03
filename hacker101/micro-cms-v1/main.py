@@ -3,7 +3,8 @@ import time
 
 # Replace this URL with the actual URL of the web application
 #base_url = 'http://example.com/page/'
-base_url = 'https://c668764c5837611fe3cf8102c7f21f3c.ctf.hacker101.com'
+#base_url = 'https://964efc860f43d2b6ef3923638f7a00b4.ctf.hacker101.com/'
+base_url = 'http://104.197.199.154:24783'
 
 def request_page(page_number):
     """Send a GET request to a specific page and print the response."""
@@ -47,20 +48,27 @@ def test_input_sanitization(input_value, path='/page/create', method='POST'):
     else:
         print("Potential issue or input rejected.")
 
+def test_log_server():
+    url = base_url
+    response = requests.get(url)
+    print(f"status code: {response.status_code}")
+
 #request_page(4)
 #create_page()
 
 # Example usage: Checking pages 1 through 10
 #check_edit_page_access(1, 10)
 
-malicious_inputs = [
-    "' OR '1'='1",                      # SQL Injection
-    "<script>alert('XSS')</script>",    # Cross-Site Scripting
-    "A"*3000,                           # Buffer Overflow / Input Length Test
-]
+# malicious_inputs = [
+#     "' OR '1'='1",                      # SQL Injection
+#     "<script>alert('XSS')</script>",    # Cross-Site Scripting
+#     "A"*3000,                           # Buffer Overflow / Input Length Test
+# ]
 
-for test_input in malicious_inputs:
-    print(f"Testing with input: {test_input}")
-    test_input_sanitization(test_input)
-    print("-" * 60)  # Separator between tests
-    time.sleep(5)
+# for test_input in malicious_inputs:
+#     print(f"Testing with input: {test_input}")
+#     test_input_sanitization(test_input)
+#     print("-" * 60)  # Separator between tests
+#     time.sleep(5)
+
+test_log_server()
